@@ -49,6 +49,10 @@ fumbl-extension/
     └── test-imperfections.js
 ```
 
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
+
 ## Additional documentation
 
 - [`backend/README.md`](backend/README.md): backend API, environment variables, OpenRouter, Stripe, and production checklist.
@@ -242,7 +246,22 @@ Before production:
 - Remove localhost host permissions if not needed.
 - Package the extension after testing.
 
-## Scripts
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, code guidelines, and how to submit a pull request.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for the security policy and how to report vulnerabilities.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a full list of changes per release.
+
+## Code of Conduct
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
 
 Root:
 
