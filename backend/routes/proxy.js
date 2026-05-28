@@ -8,7 +8,7 @@ const router = express.Router();
 
 const MAX_TEXT_LEN = 10_000;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
+const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5';
 const CLASSIFIER_MODEL = process.env.OPENROUTER_CLASSIFIER_MODEL || process.env.OPENROUTER_MODEL || 'anthropic/claude-3-haiku';
 
 const SENSITIVE_TYPES = new Set(['APOLOGY', 'LEGAL', 'HR', 'MEDICAL']);
