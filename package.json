@@ -1,0 +1,12 @@
+{
+  "name": "fumbl-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Fumbl Chrome Extension — humanize AI-written emails.",
+  "scripts": {
+    "test:prompts": "node tests/test-prompts.js",
+    "test:imperfections": "node tests/test-imperfections.js",
+    "test": "node tests/test-prompts.js && node tests/test-imperfections.js"
+  }
+}

@@ -1,0 +1,299 @@
+/* toolbar.css — Fumbl Gmail toolbar.
+ * Brand: navy #0D1B2A, accent #E05C2A.
+ * Goal: blend with Gmail's native compose footer — same family, same scale.
+ */
+
+#fumbl-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 12px;
+  color: #0D1B2A;
+  margin-left: 8px;
+  padding: 3px 6px;
+  border: 1px solid rgba(13, 27, 42, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 3px 12px rgba(13, 27, 42, 0.08);
+  user-select: none;
+}
+
+#fumbl-toolbar * {
+  box-sizing: border-box;
+}
+
+.fumbl-logo {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: lowercase;
+  color: #0D1B2A;
+  padding: 0 2px 0 4px;
+}
+
+/* --- Mode pills --- */
+.fumbl-modes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fumbl-modes .mode-btn {
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 10px;
+  border: 1px solid rgba(13, 27, 42, 0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: #0D1B2A;
+  cursor: pointer;
+  transition: background 80ms ease, color 80ms ease, border-color 80ms ease;
+}
+
+.fumbl-modes .mode-btn:hover {
+  background: rgba(13, 27, 42, 0.05);
+}
+
+.fumbl-modes .mode-btn.active {
+  background: linear-gradient(135deg, #E05C2A, #ff7542);
+  color: #fff;
+  border-color: #E05C2A;
+  box-shadow: 0 4px 10px rgba(224, 92, 42, 0.22);
+}
+
+.fumbl-modes .mode-btn:focus-visible {
+  outline: 2px solid #E05C2A;
+  outline-offset: 1px;
+}
+
+/* --- Primary CTA --- */
+.fumbl-run {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 7px 13px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0D1B2A, #14283f);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 5px 12px rgba(13, 27, 42, 0.18);
+  transition: transform 80ms ease, opacity 80ms ease, filter 80ms ease;
+}
+
+.fumbl-run:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.fumbl-run:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.fumbl-run[data-loading="true"] {
+  pointer-events: none;
+}
+
+/* --- Usage count --- */
+.fumbl-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: rgba(13, 27, 42, 0.6);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fumbl-count[data-zero="true"] {
+  color: #c0392b;
+  font-weight: 600;
+}
+
+/* --- Undo --- */
+.fumbl-undo {
+  font: inherit;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid rgba(13, 27, 42, 0.15);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #0D1B2A;
+  cursor: pointer;
+}
+
+.fumbl-undo:hover { background: rgba(13, 27, 42, 0.05); }
+.fumbl-undo[hidden] { display: none; }
+
+/* --- Toast --- */
+.fumbl-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  background: #0D1B2A;
+  color: #fff;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 360px;
+  animation: fumbl-toast-in 140ms ease-out;
+}
+
+.fumbl-toast--error {
+  background: #c0392b;
+}
+
+.fumbl-toast--warn {
+  background: #E05C2A;
+}
+
+.fumbl-toast button {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.fumbl-toast button:hover { background: rgba(255, 255, 255, 0.28); }
+
+@keyframes fumbl-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Preview modal --- */
+.fumbl-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  background: rgba(13, 27, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+}
+
+.fumbl-preview {
+  background: #fff;
+  border-radius: 10px;
+  width: min(960px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.fumbl-preview__header {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #eee;
+}
+
+.fumbl-preview__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0D1B2A;
+}
+
+.fumbl-preview__close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #0D1B2A;
+  line-height: 1;
+}
+
+.fumbl-preview__panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #eee;
+  flex: 1;
+  overflow: hidden;
+}
+
+.fumbl-preview__pane {
+  background: #fff;
+  padding: 16px 18px;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #0D1B2A;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.fumbl-preview__pane h4 {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(13, 27, 42, 0.55);
+  font-weight: 600;
+}
+
+.fumbl-diff-removed {
+  background: rgba(192, 57, 43, 0.12);
+  color: #c0392b;
+  text-decoration: line-through;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.fumbl-diff-added {
+  background: rgba(224, 92, 42, 0.18);
+  color: #0D1B2A;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.fumbl-preview__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid #eee;
+}
+
+.fumbl-preview__btn {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 5px;
+  border: 1px solid rgba(13, 27, 42, 0.2);
+  background: #fff;
+  color: #0D1B2A;
+  cursor: pointer;
+}
+
+.fumbl-preview__btn:hover { background: rgba(13, 27, 42, 0.04); }
+
+.fumbl-preview__btn--primary {
+  background: #E05C2A;
+  color: #fff;
+  border-color: #E05C2A;
+}
+
+.fumbl-preview__btn--primary:hover { background: #c44e22; }
+
+.fumbl-preview__btn--ghost {
+  background: transparent;
+  border-color: transparent;
+}

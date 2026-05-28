@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Fumbl</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <h1 class="wordmark">fumbl</h1>
+      <p class="tagline">make ai emails sound human</p>
+    </div>
+    <span class="badge">beta</span>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="section-head">
+        <label class="block__label">Rewrite style</label>
+        <span class="microcopy">used in Gmail compose</span>
+      </div>
+      <div class="mode-row" role="tablist" aria-label="Default rewrite style">
+        <button class="mode-btn" data-mode="subtle" type="button" role="tab">
+          <strong>Subtle</strong><span>Light polish</span>
+        </button>
+        <button class="mode-btn" data-mode="human" type="button" role="tab">
+          <strong>Human</strong><span>Warmer flow</span>
+        </button>
+        <button class="mode-btn" data-mode="ceo" type="button" role="tab">
+          <strong>CEO</strong><span>Short & direct</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="card usage">
+      <div class="usage__top">
+        <div>
+          <span class="block__label">Usage</span>
+          <div id="usage-line" class="usage__line">— free rewrites left today</div>
+        </div>
+        <button id="upgrade-btn" class="cta" type="button" hidden>Go Pro</button>
+      </div>
+      <div class="meter" aria-hidden="true"><span id="usage-meter"></span></div>
+    </section>
+
+    <section class="card quiet">
+      <div class="settings-row">
+        <div>
+          <div class="block__label">Privacy</div>
+          <span id="history-count" class="settings-row__value">0 saved undo snapshots</span>
+        </div>
+        <button id="clear-history" class="btn btn--ghost" type="button">Clear</button>
+      </div>
+      <p class="hint">Your OpenRouter key lives only on the backend. The extension stores local undo snapshots only.</p>
+    </section>
+  </main>
+
+  <footer class="ftr">
+    <span id="version" class="ftr__v">v—</span>
+    <a class="ftr__link" href="https://fumbl.com" target="_blank" rel="noopener">fumbl.com</a>
+  </footer>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
