@@ -10,6 +10,7 @@ const MAX_TEXT_LEN = 10_000;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5';
 const CLASSIFIER_MODEL = process.env.OPENROUTER_CLASSIFIER_MODEL || process.env.OPENROUTER_MODEL || 'anthropic/claude-3-haiku';
+const FETCH_TIMEOUT_MS = 30_000; // 30 s hard cap per OpenRouter call
 
 const SENSITIVE_TYPES = new Set(['APOLOGY', 'LEGAL', 'HR', 'MEDICAL']);
 const ALLOWED_TYPES = [
@@ -20,15 +21,30 @@ const CLASSIFIER_PROMPT =
   'Classify this email. Respond with ONLY one of these exact words, nothing else: ' +
   'COLD_OUTREACH, FOLLOW_UP, RESPONSE, APOLOGY, LEGAL, HR, MEDICAL, NEGOTIATION, PERSONAL, OTHER';
 
-// --- In-memory rate limiter (10 req/IP/min). Fine for dev / single-node. ----
+// --- In-memory rate limiter (10 req/IP/min) ----------------------------------
+// buckets is pruned on every request so it cannot grow unbounded.
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 const buckets = new Map(); // ip -> [timestamps]
+
+// Prune IPs that have had no requests in the last window.
+function pruneBuckets() {
+  const cutoff = Date.now() - RATE_WINDOW_MS;
+  for (const [ip, times] of buckets) {
+    const fresh = times.filter(t => t > cutoff);
+    if (fresh.length === 0) buckets.delete(ip);
+    else buckets.set(ip, fresh);
+  }
+}
 
 function rateLimit(req, res, next) {
   const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
   const now = Date.now();
   const cutoff = now - RATE_WINDOW_MS;
+
+  // Prune on each request (cheap — map is small for normal traffic).
+  pruneBuckets();
+
   const arr = (buckets.get(ip) || []).filter(t => t > cutoff);
   if (arr.length >= RATE_LIMIT) {
     res.set('Retry-After', '60');
@@ -39,7 +55,7 @@ function rateLimit(req, res, next) {
   next();
 }
 
-// --- System prompt (mirrors extension prompts.js). --------------------------
+// --- System prompt -----------------------------------------------------------
 const SHARED_RULES = `SHARED RULES (apply in every mode):
 - Remove all em dashes (—). Replace each with a comma or a period.
 - Remove "not only X but also Y" constructions.
@@ -66,46 +82,73 @@ const MODE_RULES = {
 - You may optionally insert 1 small typo anywhere in the body.`,
 };
 
+// Sanitize voiceProfile fields to prevent prompt injection.
+function sanitizeString(val, maxLen = 200) {
+  if (typeof val !== 'string') return '';
+  return val.replace(/[\r\n]/g, ' ').slice(0, maxLen);
+}
+
 function buildSystemPrompt(mode, voiceProfile) {
   const block = MODE_RULES[mode];
   if (!block) throw new Error(`Unknown mode: ${mode}`);
   let out = `${SHARED_RULES}\n\n${block}`;
-  if (voiceProfile) {
-    const phrases = (voiceProfile.commonPhrases || []).join(', ');
-    out += `\n\nUSER VOICE PROFILE: ${voiceProfile.summary}
-Key patterns: avg sentence length ${voiceProfile.avgSentenceLength} words, sign-off: ${voiceProfile.signOff}, vocabulary: ${phrases}`;
+
+  if (voiceProfile && typeof voiceProfile === 'object') {
+    const summary   = sanitizeString(voiceProfile.summary, 300);
+    const signOff   = sanitizeString(voiceProfile.signOff, 50);
+    const avgLen    = Number.isFinite(voiceProfile.avgSentenceLength)
+      ? Math.round(voiceProfile.avgSentenceLength)
+      : '?';
+    const phrases   = Array.isArray(voiceProfile.commonPhrases)
+      ? voiceProfile.commonPhrases.map(p => sanitizeString(p, 60)).join(', ')
+      : '';
+
+    if (summary) {
+      out += `\n\nUSER VOICE PROFILE: ${summary}
+Key patterns: avg sentence length ${avgLen} words, sign-off: ${signOff}, vocabulary: ${phrases}`;
+    }
   }
+
   return out;
 }
 
+// --- OpenRouter fetch with timeout -------------------------------------------
 async function callOpenRouter({ model, system, userText, maxTokens }) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('Missing OPENROUTER_API_KEY');
 
-  const res = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${apiKey}`,
-      'http-referer': process.env.OPENROUTER_SITE_URL || process.env.BASE_URL || 'http://localhost:3000',
-      'x-title': process.env.OPENROUTER_APP_NAME || 'Fumbl',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: userText },
-      ],
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`OpenRouter ${res.status}: ${body.slice(0, 240)}`);
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${apiKey}`,
+        'http-referer': process.env.OPENROUTER_SITE_URL || process.env.BASE_URL || 'http://localhost:3000',
+        'x-title': process.env.OPENROUTER_APP_NAME || 'Fumbl',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: maxTokens,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userText },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`OpenRouter ${res.status}: ${body.slice(0, 240)}`);
+    }
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content?.trim() || '';
+  } finally {
+    clearTimeout(timer);
   }
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content?.trim() || '';
 }
 
 async function classifyEmail(text) {
@@ -123,7 +166,7 @@ async function classifyEmail(text) {
   }
 }
 
-// --- POST /proxy/humanize ---------------------------------------------------
+// --- POST /proxy/humanize ----------------------------------------------------
 router.post('/humanize', rateLimit, async (req, res) => {
   const { text, mode, voiceProfile, force } = req.body || {};
 
@@ -137,7 +180,7 @@ router.post('/humanize', rateLimit, async (req, res) => {
     return res.status(400).json({ error: 'BAD_MODE' });
   }
 
-  // No OpenRouter key in env: keep dev-mock behavior so local UI still works.
+  // No key in env: dev-mock so local UI still works.
   if (!process.env.OPENROUTER_API_KEY) {
     return res.json({
       result: `[DEV MODE] This is a test rewrite of: ${text.slice(0, 50)}...`,
@@ -158,14 +201,17 @@ router.post('/humanize', rateLimit, async (req, res) => {
       model: DEFAULT_MODEL,
       system,
       userText: `Rewrite this email:\n\n${text}`,
-      maxTokens: 1024,
+      maxTokens: 800,
     });
     if (mode === 'ceo') result = result.toLowerCase();
     res.json({ result, provider: 'openrouter', model: DEFAULT_MODEL });
   } catch (e) {
-    // Log only the error class/message — never the email text.
+    // Log only error message — never the email text.
     console.error('[fumbl] proxy error:', e.message);
-    res.status(502).json({ error: 'UPSTREAM_ERROR' });
+    const isTimeout = e.name === 'AbortError';
+    res.status(isTimeout ? 504 : 502).json({
+      error: isTimeout ? 'UPSTREAM_TIMEOUT' : 'UPSTREAM_ERROR',
+    });
   }
 });
 

@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   const { extensionId } = req.query;
-  if (!extensionId || typeof extensionId !== 'string') {
+  if (!extensionId || typeof extensionId !== 'string' || extensionId.length > 128) {
     return res.status(400).json({ error: 'BAD_REQUEST' });
   }
   try {

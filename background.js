@@ -3,16 +3,19 @@
 // Responsibilities:
 //   A) HUMANIZE message: quota → backend OpenRouter proxy → imperfections →
 //      ceo lowercase safety net → counter increment.
-//   B) Right-click context menu humanizer.
+//   B) OPEN_UPGRADE message: open the popup/upgrade tab.
+//   C) Right-click context menu humanizer.
 //
 // Privacy: never store or log email text. Only counters + flags.
 
 import applyRandomImperfection from './imperfections.js';
 
 const FREE_DAILY_LIMIT = 2;
-// Change this to your deployed backend before publishing.
+// Change this to your deployed backend URL before publishing.
 const BACKEND_BASE_URL = 'http://localhost:3000';
+const FETCH_TIMEOUT_MS = 35_000; // 35 s — slightly above backend 30 s cap
 const SENSITIVE_TYPES = new Set(['APOLOGY', 'LEGAL', 'HR', 'MEDICAL']);
+const CHECKOUT_URL = 'https://fumbl.com/checkout';
 
 // --- Helpers ----------------------------------------------------------------
 
@@ -41,16 +44,40 @@ async function rolloverIfNewDay(state) {
 }
 
 async function callBackend(path, payload) {
-  const res = await fetch(`${BACKEND_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    return { error: data.error || `HTTP_${res.status}` };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BACKEND_BASE_URL}${path}`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: data.error || `HTTP_${res.status}` };
+    return data;
+  } catch (e) {
+    if (e.name === 'AbortError') return { error: 'TIMEOUT' };
+    return { error: 'NETWORK_ERROR', message: e.message };
+  } finally {
+    clearTimeout(timer);
   }
-  return data;
+}
+
+// Auto-clean old undo snapshots older than 24 h so storage doesn't bloat.
+async function pruneOldUndoSnapshots() {
+  try {
+    const all = await chrome.storage.local.get(null);
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const stale = Object.keys(all).filter(k => {
+      if (!k.startsWith('undo_')) return false;
+      const ts = parseInt(k.slice(5), 10);
+      return Number.isFinite(ts) && ts < cutoff;
+    });
+    if (stale.length > 0) await chrome.storage.local.remove(stale);
+  } catch {
+    // Non-critical — ignore.
+  }
 }
 
 // --- HUMANIZE handler -------------------------------------------------------
@@ -87,6 +114,9 @@ async function handleHumanize({ text, mode, voiceProfile, force }) {
     await chrome.storage.local.set({ dailyCount: state.dailyCount + 1 });
   }
 
+  // Best-effort background cleanup of old snapshots.
+  pruneOldUndoSnapshots();
+
   return { result, provider: resp.provider };
 }
 
@@ -94,9 +124,17 @@ async function handleHumanize({ text, mode, voiceProfile, force }) {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'HUMANIZE') {
-    handleHumanize(msg).then(sendResponse).catch(e => sendResponse({ error: 'FATAL', message: String(e) }));
+    handleHumanize(msg)
+      .then(sendResponse)
+      .catch(e => sendResponse({ error: 'FATAL', message: String(e) }));
     return true; // async response
   }
+
+  if (msg?.type === 'OPEN_UPGRADE') {
+    chrome.tabs.create({ url: CHECKOUT_URL });
+    return false;
+  }
+
   return false;
 });
 

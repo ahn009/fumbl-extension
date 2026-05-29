@@ -8,7 +8,7 @@ const DEV_MODE = process.env.NODE_ENV !== 'production';
 
 router.post('/create-session', async (req, res) => {
   const { extensionId } = req.body || {};
-  if (!extensionId || typeof extensionId !== 'string') {
+  if (!extensionId || typeof extensionId !== 'string' || extensionId.length > 128) {
     return res.status(400).json({ error: 'BAD_REQUEST' });
   }
 
